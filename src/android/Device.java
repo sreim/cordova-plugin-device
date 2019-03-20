@@ -28,6 +28,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Method;
+
 import android.provider.Settings;
 
 public class Device extends CordovaPlugin {
@@ -74,7 +76,7 @@ public class Device extends CordovaPlugin {
             r.put("platform", this.getPlatform());
             r.put("model", this.getModel());
             r.put("manufacturer", this.getManufacturer());
-	        r.put("isVirtual", this.isVirtual());
+            r.put("isVirtual", this.isVirtual());
             r.put("serial", this.getSerialNumber());
             callbackContext.success(r);
         }
@@ -128,9 +130,36 @@ public class Device extends CordovaPlugin {
         return manufacturer;
     }
 
+//    public String getSerialNumber() {
+//        String serial = android.os.Build.SERIAL;
+//        return serial;
+//    }
+
     public String getSerialNumber() {
-        String serial = android.os.Build.SERIAL;
-        return serial;
+        String serialNumber;
+        try {
+            Class<?> c = Class.forName("android.os.SystemProperties");
+            Method get = c.getMethod("get", String.class);
+
+            serialNumber = (String) get.invoke(c, "gsm.sn1");
+            if (serialNumber.equals(""))
+                serialNumber = (String) get.invoke(c, "ril.serialnumber");
+            if (serialNumber.equals(""))
+                serialNumber = (String) get.invoke(c, "ro.serialno");
+            if (serialNumber.equals(""))
+                serialNumber = (String) get.invoke(c, "sys.serialnumber");
+            if (serialNumber.equals(""))
+                serialNumber = android.os.Build.SERIAL;
+
+            // If none of the methods above worked
+            if (serialNumber.equals("")){
+                serialNumber = null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            serialNumber = null;
+        }
+        return serialNumber;
     }
 
     /**
@@ -167,8 +196,8 @@ public class Device extends CordovaPlugin {
     }
 
     public boolean isVirtual() {
-	return android.os.Build.FINGERPRINT.contains("generic") ||
-	    android.os.Build.PRODUCT.contains("sdk");
+        return android.os.Build.FINGERPRINT.contains("generic") ||
+                android.os.Build.PRODUCT.contains("sdk");
     }
 
 }
